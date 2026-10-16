@@ -5,6 +5,11 @@ All notable changes to this project are documented here. The format follows
 [Semantic Versioning](https://semver.org/). Until v1.0.0 the API can change
 between minor versions.
 
+## [0.1.1] - 2026-10-16
+
+### Fixed
+- Satisfy staticcheck (S1016) so CI is green. No behaviour change.
+
 ## [0.1.0] - 2026-10-16
 
 ### Added

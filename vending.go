@@ -92,7 +92,7 @@ func (c *Client) CreateVendingToken(ctx context.Context, r VendingTokenRequest) 
 		return nil, invalidArg("vending hash must be 16 alphanumeric characters")
 	}
 
-	wire := vendingTokenWire{WalletAddress: r.WalletAddress, WalletPIN: r.WalletPIN, Hash: r.Hash}
+	wire := vendingTokenWire(r)
 	var tok VendingToken
 	if err := c.post(ctx, vendingTokenPath, wire, &tok); err != nil {
 		return nil, err
