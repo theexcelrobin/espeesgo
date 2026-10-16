@@ -1,0 +1,31 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: ["1.22", "1.25", "stable"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+      - run: go vet ./...
+      - run: go test -race -count=1 -coverprofile=coverage.out ./...
+      - run: test -z "$(gofmt -l .)"
+
+  staticcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - run: go install honnef.co/go/tools/cmd/staticcheck@latest
+      - run: staticcheck ./...
