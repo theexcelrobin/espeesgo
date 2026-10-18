@@ -8,11 +8,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
 const (
-	Version = "0.1.0"
+	Version = "0.2.0"
 
 	DefaultAPIURL      = "https://api.espees.org"
 	DefaultCheckoutURL = "https://payment.espees.org"
@@ -29,6 +30,7 @@ type Client struct {
 	userAgent   string
 	timeout     time.Duration
 	maxRetries  int
+	version     APIVersion
 	http        *http.Client
 }
 
@@ -39,6 +41,7 @@ func New(opts ...Option) *Client {
 		checkoutURL: DefaultCheckoutURL,
 		userAgent:   "espeesgo/" + Version,
 		timeout:     defaultTimeout,
+		version:     APIv1,
 		http:        &http.Client{},
 	}
 	for _, opt := range opts {
@@ -48,7 +51,11 @@ func New(opts ...Option) *Client {
 }
 
 func (c *Client) post(ctx context.Context, path string, body, out any) error {
-	if c.apiKey == "" {
+	return c.call(ctx, path, body, out, true)
+}
+
+func (c *Client) call(ctx context.Context, path string, body, out any, keyRequired bool) error {
+	if keyRequired && c.apiKey == "" {
 		return ErrNoAPIKey
 	}
 	payload, err := json.Marshal(body)
@@ -90,7 +97,9 @@ func (c *Client) send(ctx context.Context, path string, payload []byte, out any)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", c.userAgent)
-	req.Header.Set("x-api-key", c.apiKey)
+	if c.apiKey != "" {
+		req.Header.Set("x-api-key", c.apiKey)
+	}
 
 	resp, err := c.http.Do(req)
 	if err != nil {
@@ -109,6 +118,9 @@ func (c *Client) send(ctx context.Context, path string, payload []byte, out any)
 
 	var env envelope
 	if json.Unmarshal(data, &env) == nil {
+		if env.ErrorMessage != "" {
+			return &APIError{Status: http.StatusBadGateway, Message: strings.TrimSpace(env.ErrorType + ": " + env.ErrorMessage)}
+		}
 		if status, ok := env.status(); ok && (status < 200 || status > 299) {
 			return &APIError{Status: status, Message: env.text()}
 		}

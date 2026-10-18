@@ -2,15 +2,20 @@ package espeesgo
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"math"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
 
 const (
-	productPath = "/v2/payment/product"
-	confirmPath = "/v2/payment/confirm/"
+	productPathV1 = "/payment/product"
+	confirmPathV1 = "/payment/confirm"
+	productPathV2 = "/v2/payment/product"
+	confirmPathV2 = "/v2/payment/confirm/"
 
 	defaultPollInterval = 3 * time.Second
 	minPollInterval     = time.Second
@@ -43,7 +48,29 @@ type productRequest struct {
 
 type productResponse struct {
 	PaymentRef string `json:"payment_ref"`
+	ProductID  string `json:"productid"`
 	Message    string `json:"message"`
+}
+
+func (r productResponse) ref() string {
+	if r.PaymentRef != "" {
+		return r.PaymentRef
+	}
+	return r.ProductID
+}
+
+func (c *Client) productPath() string {
+	if c.version == APIv2 {
+		return productPathV2
+	}
+	return productPathV1
+}
+
+func (c *Client) confirmPath() string {
+	if c.version == APIv2 {
+		return confirmPathV2
+	}
+	return confirmPathV1
 }
 
 // Payment is a created charge waiting for the buyer.
@@ -61,13 +88,14 @@ func (c *Client) CreateProduct(ctx context.Context, p Product) (string, error) {
 		return "", err
 	}
 	var res productResponse
-	if err := c.post(ctx, productPath, req, &res); err != nil {
+	if err := c.call(ctx, c.productPath(), req, &res, c.version == APIv2); err != nil {
 		return "", err
 	}
-	if res.PaymentRef == "" {
-		return "", &APIError{Status: 200, Message: "response has no payment_ref"}
+	ref := res.ref()
+	if ref == "" {
+		return "", &APIError{Status: 200, Message: "response has no payment reference"}
 	}
-	return res.PaymentRef, nil
+	return ref, nil
 }
 
 // CreatePayment registers a charge and returns it with its checkout URL.
@@ -143,6 +171,30 @@ type PaymentStatus struct {
 	UserData        map[string]any `json:"user_data"`
 }
 
+// UnmarshalJSON reads the price whether Espees sends it as a number or as a
+// string.
+func (s *PaymentStatus) UnmarshalJSON(b []byte) error {
+	type plain PaymentStatus
+	aux := struct {
+		*plain
+		Price json.RawMessage `json:"price"`
+	}{plain: (*plain)(s)}
+	if err := json.Unmarshal(b, &aux); err != nil {
+		return err
+	}
+	raw := strings.Trim(strings.TrimSpace(string(aux.Price)), `"`)
+	if raw == "" || raw == "null" {
+		s.Price = 0
+		return nil
+	}
+	price, err := strconv.ParseFloat(raw, 64)
+	if err != nil {
+		return fmt.Errorf("espeesgo: invalid price %q", raw)
+	}
+	s.Price = price
+	return nil
+}
+
 func (s PaymentStatus) is(want TransactionStatus) bool {
 	return strings.EqualFold(strings.TrimSpace(string(s.TransactionStatus)), string(want))
 }
@@ -182,8 +234,12 @@ func (c *Client) ConfirmPayment(ctx context.Context, ref string) (*PaymentStatus
 		return nil, invalidArg("payment ref is required")
 	}
 	var st PaymentStatus
-	body := map[string]string{"payment_ref": ref}
-	if err := c.post(ctx, confirmPath, body, &st); err != nil {
+	field := "product_id"
+	if c.version == APIv2 {
+		field = "payment_ref"
+	}
+	body := map[string]string{field: ref}
+	if err := c.call(ctx, c.confirmPath(), body, &st, c.version == APIv2); err != nil {
 		return nil, err
 	}
 	return &st, nil

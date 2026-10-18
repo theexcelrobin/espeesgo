@@ -45,11 +45,13 @@ var (
 )
 
 type envelope struct {
-	StatusCode json.RawMessage `json:"statusCode"`
-	Message    string          `json:"message"`
-	Error      json.RawMessage `json:"error"`
-	Msg        string          `json:"msg"`
-	Detail     string          `json:"detail"`
+	StatusCode   json.RawMessage `json:"statusCode"`
+	Message      string          `json:"message"`
+	Error        json.RawMessage `json:"error"`
+	Msg          string          `json:"msg"`
+	Detail       string          `json:"detail"`
+	ErrorType    string          `json:"errorType"`
+	ErrorMessage string          `json:"errorMessage"`
 }
 
 func (e envelope) status() (int, bool) {

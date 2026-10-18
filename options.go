@@ -15,6 +15,28 @@ func WithAPIKey(key string) Option {
 	return func(c *Client) { c.apiKey = key }
 }
 
+// APIVersion picks the merchant payment endpoints.
+type APIVersion int
+
+const (
+	// APIv1 uses /payment/product and /payment/confirm. They need no API key
+	// and are what live merchants use today.
+	APIv1 APIVersion = 1
+	// APIv2 uses /v2/payment/product and /v2/payment/confirm/, which the
+	// documentation describes and which require a valid API key.
+	APIv2 APIVersion = 2
+)
+
+// WithAPIVersion selects the merchant payment endpoints. The default is APIv1.
+// It does not affect the vending calls.
+func WithAPIVersion(v APIVersion) Option {
+	return func(c *Client) {
+		if v == APIv1 || v == APIv2 {
+			c.version = v
+		}
+	}
+}
+
 // WithHTTPClient replaces the default http.Client.
 func WithHTTPClient(hc *http.Client) Option {
 	return func(c *Client) {

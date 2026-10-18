@@ -10,9 +10,15 @@ import (
 )
 
 func TestRequiresAPIKey(t *testing.T) {
-	_, err := New().ConfirmPayment(context.Background(), "ref")
-	if !errors.Is(err, ErrNoAPIKey) {
-		t.Fatalf("got %v", err)
+	ctx := context.Background()
+	if _, err := New(WithAPIVersion(APIv2)).ConfirmPayment(ctx, "ref"); !errors.Is(err, ErrNoAPIKey) {
+		t.Fatalf("v2 confirm: got %v", err)
+	}
+	if _, err := New(WithAPIVersion(APIv2)).CreateProduct(ctx, validProduct()); !errors.Is(err, ErrNoAPIKey) {
+		t.Fatalf("v2 create: got %v", err)
+	}
+	if _, err := New().VendEspees(ctx, "wallet", "1234", "user", 1); !errors.Is(err, ErrNoAPIKey) {
+		t.Fatalf("vending: got %v", err)
 	}
 }
 

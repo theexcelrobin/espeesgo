@@ -21,7 +21,12 @@ go get github.com/theexcelrobin/espeesgo
 ## Accept a payment
 
 ```go
-client := espeesgo.New(espeesgo.WithAPIKey(os.Getenv("ESPEES_API_KEY")))
+client := espeesgo.New()
+```
+
+That uses the v1 payment endpoints, which need no API key. To use the v2
+endpoints from the documentation instead, pass a key:
+`espeesgo.New(espeesgo.WithAPIVersion(espeesgo.APIv2), espeesgo.WithAPIKey(key))`.
 
 payment, err := client.CreatePayment(ctx, espeesgo.Product{
 	SKU:            "ORDER-1001",
@@ -88,6 +93,9 @@ one check covers both. `WithMaxRetries(n)` retries 429 responses only.
 
 ## Notes
 
+- The v2 payment endpoints answer `403 Forbidden` from the API gateway when the
+  key is not accepted, which is also what a missing key gets. The v1 endpoints
+  have no such check, so v1 is the default.
 - Keep the API key on your server. Do not put it in a browser or mobile app.
 - Prices are `float64`, matching the API. Compare with `Matches`, not `==`.
 - The documentation does not describe error responses or a test host, so error

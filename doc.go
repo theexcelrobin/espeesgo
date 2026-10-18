@@ -4,7 +4,7 @@
 // Vending API, for liquidity partners who vend Espees to user wallets. It uses
 // only the standard library.
 //
-//	client := espeesgo.New(espeesgo.WithAPIKey(os.Getenv("ESPEES_API_KEY")))
+//	client := espeesgo.New()
 //
 //	payment, err := client.CreatePayment(ctx, espeesgo.Product{
 //		SKU:            "ORDER-1001",
